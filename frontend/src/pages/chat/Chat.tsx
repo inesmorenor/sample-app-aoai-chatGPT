@@ -828,13 +828,13 @@ const Chat = () => {
                   horizontal
                   className={styles.stopGeneratingContainer}
                   role="button"
-                  aria-label="Dejar de generar"
+                  aria-label="Stop generating"
                   tabIndex={0}
                   onClick={stopGenerating}
                   onKeyDown={e => (e.key === 'Enter' || e.key === ' ' ? stopGenerating() : null)}>
                   <SquareRegular className={styles.stopGeneratingIcon} aria-hidden="true" />
                   <span className={styles.stopGeneratingText} aria-hidden="true">
-                    Stop generating
+                    Dejar de generar
                   </span>
                 </Stack>
               )}
@@ -852,7 +852,7 @@ const Chat = () => {
                       root: {
                         color: '#FFFFFF',
                         background:
-                          'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #0F6CBD 33.63%, #2D87C3 70.31%, #8DDDD8 100%)'
+                          'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #E33A3A 33.63%, #C32D2D 90.31%, #0E0101 100%)'
                       },
                       rootDisabled: {
                         background: '#F0F0F0'
@@ -877,7 +877,7 @@ const Chat = () => {
                     root: {
                       color: '#FFFFFF',
                       background:
-                        'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #0F6CBD 33.63%, #2D87C3 70.31%, #8DDDD8 100%)'
+                        'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #E33A3A 33.63%, #C32D2D 90.31%, #0E0101 100%)'
                     },
                     rootDisabled: {
                       background: '#F0F0F0'
