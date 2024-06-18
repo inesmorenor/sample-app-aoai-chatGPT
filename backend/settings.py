@@ -41,12 +41,12 @@ class _UiSettings(BaseSettings):
         env_ignore_empty=True
     )
 
-    title: str = "Contoso"
+    title: str = "MadridDigital"
     logo: Optional[str] = None
     chat_logo: Optional[str] = None
     chat_title: str = "Start chatting"
     chat_description: str = "This chatbot is configured to answer your questions"
-    favicon: str = "/favicon.ico"
+    favicon: str = "/MadridLogo.png"
     show_share_button: bool = True
 
 
@@ -667,6 +667,7 @@ class _AppSettings(BaseModel):
     azure_openai: _AzureOpenAISettings = _AzureOpenAISettings()
     search: _SearchCommonSettings = _SearchCommonSettings()
     ui: Optional[_UiSettings] = _UiSettings()
+    feedback_message : str = ""
     
     # Constructed properties
     chat_history: Optional[_ChatHistorySettings] = None

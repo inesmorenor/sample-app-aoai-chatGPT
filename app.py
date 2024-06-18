@@ -1,9 +1,13 @@
 import copy
+import pandas as pd
 import json
 import os
+import io
+import csv
 import logging
 import uuid
 import httpx
+import time
 from quart import (
     Blueprint,
     Quart,
@@ -12,6 +16,7 @@ from quart import (
     request,
     send_from_directory,
     render_template,
+    session
 )
 
 from openai import AsyncAzureOpenAI
@@ -19,6 +24,7 @@ from azure.identity.aio import (
     DefaultAzureCredential,
     get_bearer_token_provider
 )
+from azure.storage.blob import BlobServiceClient
 from backend.auth.auth_utils import get_authenticated_user_details
 from backend.security.ms_defender_utils import get_msdefender_user_json
 from backend.history.cosmosdbservice import CosmosConversationClient
@@ -36,16 +42,17 @@ from backend.utils import (
 
 bp = Blueprint("routes", __name__, static_folder="static", template_folder="static")
 
-
 def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.secret_key = "e92ged8h28h2hd018db0823db081"
     return app
 
 
 @bp.route("/")
 async def index():
+    session["startTime"] = time.time()
     return await render_template(
         "index.html",
         title=app_settings.ui.title,
@@ -55,7 +62,7 @@ async def index():
 
 @bp.route("/favicon.ico")
 async def favicon():
-    return await bp.send_static_file("favicon.ico")
+    return await bp.send_static_file("MadridLogo.png")
 
 
 @bp.route("/assets/<path:path>")
@@ -87,8 +94,10 @@ frontend_settings = {
         "show_share_button": app_settings.ui.show_share_button,
     },
     "sanitize_answer": app_settings.base_settings.sanitize_answer,
+    "frontend_message":"",
 }
 
+FEEDBACK_LOG_PATH = "../feedback.csv"
 
 # Enable Microsoft Defender for Cloud Integration
 MS_DEFENDER_ENABLED = os.environ.get("MS_DEFENDER_ENABLED", "true").lower() == "true"
@@ -369,6 +378,35 @@ async def conversation_internal(request_body, request_headers):
         else:
             return jsonify({"error": str(ex)}), 500
 
+
+def list_to_csv_string(data):
+    output = io.StringIO()
+    writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC)
+    writer.writerow(data)
+    return output.getvalue().strip()
+
+@bp.route("/feedback",methods=["POST"])
+async def update_feedback():
+    container_name = os.environ.get("AZURE_LOGS_CONTAINER")
+    blob_name = os.environ.get("AZURE_LOGS_BLOB")
+    account_name = os.environ.get("AZURE_LOGS_BLOB_SERVICE")
+    account_key = os.environ.get("AZURE_LOGS_BLOB_KEY")
+    connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key}"
+
+    if not request.is_json:
+        return jsonify({"error": "request must be json"}), 415
+    request_json = await request.get_json()
+    
+    try:
+        value_dict = {"Code":request_json.get("Code",""),"Feedback":request_json.get("message",[]),"Messages":str(request_json.get("messages",[])) , "TimeElapsed": time.time()-session.get("startTime", None)}
+        data_to_append = list_to_csv_string(value_dict.values()) + "\n"
+    
+        service = BlobServiceClient.from_connection_string(connection_string)
+        with service.get_blob_client(container_name, blob_name) as blob_client:
+            blob_client.append_block(data_to_append, length=len(data_to_append))
+    except:
+        pass
+    return jsonify({"message":"Successfully added feedback: " + request_json.get("message", [])}), 200
 
 @bp.route("/conversation", methods=["POST"])
 async def conversation():

@@ -10,10 +10,11 @@ import { isEmpty } from 'lodash'
 import DOMPurify from 'dompurify'
 
 import styles from './Chat.module.css'
-import Contoso from '../../assets/Contoso.svg'
+import Contoso from '../../assets/MadridLogo.png'
 import { XSSAllowTags } from '../../constants/xssAllowTags'
 
 import {
+  UpdateFeedback,
   ChatMessage,
   ConversationRequest,
   conversationApi,
@@ -62,6 +63,12 @@ const Chat = () => {
   const [clearingChat, setClearingChat] = useState<boolean>(false)
   const [hideErrorDialog, { toggle: toggleErrorDialog }] = useBoolean(true)
   const [errorMsg, setErrorMsg] = useState<ErrorMessage | null>()
+  const [isFeedbackOpen,setIsFeedbackOpen] = useState<boolean>(false)
+  const [currentFeedback, setCurrentFeedback] = useState<string>("")
+  const [isFeedbackSent,setIsFeedbackSent] = useState<boolean>(false)
+  const [code, setCode] = useState<string>("")
+  const [hasCode, setHasCode] = useState<boolean>(false)
+
 
   const errorDialogContentProps = {
     type: DialogType.close,
@@ -508,7 +515,16 @@ const Chat = () => {
     }
     return abortController.abort()
   }
-
+  const updateFeedback = async (feedback : string, id?:string) => {
+    const abortController = new AbortController()
+    abortFuncs.current.unshift(abortController)
+    const response = await UpdateFeedback(feedback, messages.map((answer,_)=>(answer.content)), code, abortController.signal)
+    if (response) {
+      setCurrentFeedback(feedback)
+      return
+    }
+    return abortController.abort()
+  }
   const clearChat = async () => {
     setClearingChat(true)
     if (appStateContext?.state.currentChat?.id && appStateContext?.state.isCosmosDBAvailable.cosmosDB) {
@@ -764,85 +780,162 @@ const Chat = () => {
         <Stack horizontal className={styles.chatRoot}>
           <div className={styles.chatContainer}>
             {!messages || messages.length < 1 ? (
-              <Stack className={styles.chatEmptyState}>
-                <img src={ui?.chat_logo ? ui.chat_logo : Contoso} className={styles.chatIcon} aria-hidden="true" />
-                <h1 className={styles.chatEmptyStateTitle}>{ui?.chat_title}</h1>
-                <h2 className={styles.chatEmptyStateSubtitle}>{ui?.chat_description}</h2>
-              </Stack>
-            ) : (
-              <div className={styles.chatMessageStream} style={{ marginBottom: isLoading ? '40px' : '0px' }} role="log">
-                {messages.map((answer, index) => (
-                  <>
-                    {answer.role === 'user' ? (
-                      <div className={styles.chatMessageUser} tabIndex={0}>
-                        <div className={styles.chatMessageUserMessage}>{answer.content}</div>
-                      </div>
-                    ) : answer.role === 'assistant' ? (
+                <Stack className={styles.chatEmptyState}>
+                  <img src={ui?.chat_logo ? ui.chat_logo : Contoso} className={styles.chatIcon} aria-hidden="true" />
+                  <h1 className={styles.chatEmptyStateTitle}>{ui?.chat_title}</h1>
+                  <h2 className={styles.chatEmptyStateSubtitle}>{ui?.chat_description}</h2>
+                </Stack>
+              ) : (
+                <div className={styles.chatMessageStream} style={{ marginBottom: isLoading ? '40px' : '0px' }} role="log">
+                  {messages.map((answer, index) => (
+                    <>
+                      {answer.role === 'user' ? (
+                        <div className={styles.chatMessageUser} tabIndex={0}>
+                          <div className={styles.chatMessageUserMessage}>{answer.content}</div>
+                        </div>
+                      ) : answer.role === 'assistant' ? (
+                        <div className={styles.chatMessageGpt}>
+                          <Answer
+                            answer={{
+                              answer: answer.content,
+                              citations: parseCitationFromMessage(messages[index - 1]),
+                              plotly_data: parsePlotFromMessage(messages[index - 1]),
+                              message_id: answer.id,
+                              feedback: answer.feedback,
+                              exec_results: execResults
+                            }}
+                            onCitationClicked={c => onShowCitation(c)}
+                            onExectResultClicked={() => onShowExecResult()}
+                          />
+                        </div>
+                      ) : answer.role === ERROR ? (
+                        <div className={styles.chatMessageError}>
+                          <Stack horizontal className={styles.chatMessageErrorContent}>
+                            <ErrorCircleRegular className={styles.errorIcon} style={{ color: 'rgba(182, 52, 67, 1)' }} />
+                            <span>Error</span>
+                          </Stack>
+                          <span className={styles.chatMessageErrorContent}>{answer.content}</span>
+                        </div>
+                      ) : null}
+                    </>
+                  ))}
+                  {showLoadingMessage && (
+                    <>
                       <div className={styles.chatMessageGpt}>
                         <Answer
                           answer={{
-                            answer: answer.content,
-                            citations: parseCitationFromMessage(messages[index - 1]),
-                            plotly_data: parsePlotFromMessage(messages[index - 1]),
-                            message_id: answer.id,
-                            feedback: answer.feedback,
-                            exec_results: execResults
+                            answer: "Generando respuesta...",
+                            citations: [],
+                            plotly_data: null
                           }}
-                          onCitationClicked={c => onShowCitation(c)}
-                          onExectResultClicked={() => onShowExecResult()}
+                          onCitationClicked={() => null}
+                          onExectResultClicked={() => null}
                         />
                       </div>
-                    ) : answer.role === ERROR ? (
-                      <div className={styles.chatMessageError}>
-                        <Stack horizontal className={styles.chatMessageErrorContent}>
-                          <ErrorCircleRegular className={styles.errorIcon} style={{ color: 'rgba(182, 52, 67, 1)' }} />
-                          <span>Error</span>
-                        </Stack>
-                        <span className={styles.chatMessageErrorContent}>{answer.content}</span>
-                      </div>
-                    ) : null}
-                  </>
-                ))}
-                {showLoadingMessage && (
-                  <>
-                    <div className={styles.chatMessageGpt}>
-                      <Answer
-                        answer={{
-                          answer: "Generando respuesta...",
-                          citations: [],
-                          plotly_data: null
-                        }}
-                        onCitationClicked={() => null}
-                        onExectResultClicked={() => null}
-                      />
-                    </div>
-                  </>
-                )}
-                <div ref={chatMessageStreamEnd} />
-              </div>
+                    </>
+                  )}
+                  <div ref={chatMessageStreamEnd} />
+                </div>
             )}
 
-            <Stack horizontal className={styles.chatInput}>
-              {isLoading && (
-                <Stack
-                  horizontal
-                  className={styles.stopGeneratingContainer}
-                  role="button"
-                  aria-label="Stop generating"
-                  tabIndex={0}
-                  onClick={stopGenerating}
-                  onKeyDown={e => (e.key === 'Enter' || e.key === ' ' ? stopGenerating() : null)}>
-                  <SquareRegular className={styles.stopGeneratingIcon} aria-hidden="true" />
-                  <span className={styles.stopGeneratingText} aria-hidden="true">
-                        Detener
-                  </span>
-                </Stack>
-              )}
-              <Stack>
-                {appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && (
-                  <CommandBarButton
+            <Stack className={styles.chatInput}>
+              {isFeedbackSent ?
+              (<div className={styles.chatEmptyStateSubtitle}>Gracias por su feedback</div>)
+              :(<Stack horizontal className={styles.chatInput}>
+                {isLoading && (
+                  <Stack
+                    horizontal
+                    className={styles.stopGeneratingContainer}
                     role="button"
-                    styles={{
+                    aria-label="Stop generating"
+                    tabIndex={0}
+                    onClick={stopGenerating}
+                    onKeyDown={e => (e.key === 'Enter' || e.key === ' ' ? stopGenerating() : null)}>
+                    <SquareRegular className={styles.stopGeneratingIcon} aria-hidden="true" />
+                    <span className={styles.stopGeneratingText} aria-hidden="true">
+                          Detener
+                    </span>
+                  </Stack>
+                )}
+                <Stack>
+                    {appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && (
+                      <CommandBarButton
+                        role="button"
+                        styles={{
+                          icon: {
+                            color: '#FFFFFF'
+                          },
+                          iconDisabled: {
+                            color: '#BDBDBD !important'
+                          },
+                          root: {
+                            color: '#FFFFFF',
+                            background:
+                              'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #E33A3A 33.63%, #C32D2D 90.31%, #0E0101 100%)'
+                          },
+                          rootDisabled: {
+                            background: '#F0F0F0'
+                          }
+                        }}
+                        className={styles.newChatIcon}
+                        iconProps={{ iconName: 'Add' }}
+                        onClick={newChat}
+                        disabled={disabledButton()}
+                        aria-label="start a new chat button"
+                      />
+                    )}
+                    <CommandBarButton
+                      role="button"
+                      styles={{
+                        icon: {
+                          color: '#FFFFFF'
+                        },
+                        iconDisabled: {
+                          color: '#BDBDBD !important'
+                        },
+                        root: {
+                          color: '#FFFFFF',
+                          background:
+                            'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #E33A3A 33.63%, #C32D2D 90.31%, #0E0101 100%)'
+                        },
+                        rootDisabled: {
+                          background: '#F0F0F0'
+                        }
+                      }}
+                      className={
+                        appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured
+                          ? styles.clearChatBroom
+                          : styles.clearChatBroomNoCosmos
+                      }
+                      iconProps={{ iconName: 'Broom' }}
+                      onClick={
+                        appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured
+                          ? clearChat
+                          : newChat
+                      }
+                      disabled={disabledButton()}
+                      aria-label="clear chat button"
+                    />
+                    <CommandBarButton
+                    role="button"
+                    styles={isFeedbackOpen ?
+                      {
+                        icon: {
+                          color: '#FFFFFF'
+                        },
+                        iconDisabled: {
+                          color: '#BDBDBD !important'
+                        },
+                        root: {
+                          color: '#FFFFFF',
+                          background:
+                            'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #af0909 90.00%, #af0909 90.31%, #af0909 100%)'
+                        },
+                        rootDisabled: {
+                          background: '#F0F0F0'
+                        }
+                      } 
+                      :{
                       icon: {
                         color: '#FFFFFF'
                       },
@@ -852,74 +945,64 @@ const Chat = () => {
                       root: {
                         color: '#FFFFFF',
                         background:
-                          'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #E33A3A 33.63%, #C32D2D 90.31%, #0E0101 100%)'
+                          'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #0E0101 90.00%, #0E0101 90.31%, #0E0101 100%)'
                       },
                       rootDisabled: {
                         background: '#F0F0F0'
                       }
                     }}
-                    className={styles.newChatIcon}
-                    iconProps={{ iconName: 'Add' }}
-                    onClick={newChat}
-                    disabled={disabledButton()}
-                    aria-label="start a new chat button"
-                  />
-                )}
-                <CommandBarButton
-                  role="button"
-                  styles={{
-                    icon: {
-                      color: '#FFFFFF'
-                    },
-                    iconDisabled: {
-                      color: '#BDBDBD !important'
-                    },
-                    root: {
-                      color: '#FFFFFF',
-                      background:
-                        'radial-gradient(109.81% 107.82% at 100.1% 90.19%, #E33A3A 33.63%, #C32D2D 90.31%, #0E0101 100%)'
-                    },
-                    rootDisabled: {
-                      background: '#F0F0F0'
+                    className={
+                      styles.feedbackIcon
                     }
+                    iconProps={{ iconName: 'Feedback' }}
+                    onClick={()=>setIsFeedbackOpen(!isFeedbackOpen)}
+                    disabled={false}
+                    aria-label="feedback button"
+                  />
+                  <Dialog
+                    hidden={hideErrorDialog}
+                    onDismiss={handleErrorDialogClose}
+                    dialogContentProps={errorDialogContentProps}
+                    modalProps={modalProps}></Dialog>
+                </Stack>
+                {!hasCode ?
+                (<QuestionInput
+                  clearOnSend
+                  placeholder="Escriba aquí su código."
+                  disabled={isLoading}
+                  onSend={(code) => {
+                    setCode(code)
+                    setHasCode(true)
                   }}
-                  className={
-                    appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured
-                      ? styles.clearChatBroom
-                      : styles.clearChatBroomNoCosmos
+                />)
+                : isFeedbackOpen ?
+                (<QuestionInput
+                  clearOnSend
+                  placeholder="Escriba aquí su feedback."
+                  disabled={!isFeedbackOpen || isLoading}
+                  onSend={(feedback,id) => {
+                    setIsFeedbackSent(true)
+                    updateFeedback(feedback,id)
+                  }}
+                />) 
+                :(<QuestionInput
+                  clearOnSend
+                  placeholder="Escriba aquí su consulta."
+                  disabled={isFeedbackOpen || isLoading}
+                  onSend={(question, id) => {
+                    appStateContext?.state.isCosmosDBAvailable?.cosmosDB
+                      ? makeApiRequestWithCosmosDB(question, id)
+                      : makeApiRequestWithoutCosmosDB(question, id)
+                  }}
+                  conversationId={
+                    appStateContext?.state.currentChat?.id ? appStateContext?.state.currentChat?.id : undefined
                   }
-                  iconProps={{ iconName: 'Broom' }}
-                  onClick={
-                    appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured
-                      ? clearChat
-                      : newChat
-                  }
-                  disabled={disabledButton()}
-                  aria-label="clear chat button"
-                />
-                <Dialog
-                  hidden={hideErrorDialog}
-                  onDismiss={handleErrorDialogClose}
-                  dialogContentProps={errorDialogContentProps}
-                  modalProps={modalProps}></Dialog>
-              </Stack>
-              <QuestionInput
-                clearOnSend
-                placeholder="Escriba aquí su consulta."
-                disabled={isLoading}
-                onSend={(question, id) => {
-                  appStateContext?.state.isCosmosDBAvailable?.cosmosDB
-                    ? makeApiRequestWithCosmosDB(question, id)
-                    : makeApiRequestWithoutCosmosDB(question, id)
-                }}
-                conversationId={
-                  appStateContext?.state.currentChat?.id ? appStateContext?.state.currentChat?.id : undefined
-                }
-              />
+                />)}
+              </Stack>)}
             </Stack>
           </div>
           {/* Citation Panel */}
-          {messages && messages.length > 0 && isCitationPanelOpen && activeCitation && (
+          {!isFeedbackOpen && messages && messages.length > 0 && isCitationPanelOpen && activeCitation && (
             <Stack.Item className={styles.citationPanel} tabIndex={0} role="tabpanel" aria-label="Citations Panel">
               <Stack
                 aria-label="Citations Panel Header Container"
@@ -939,8 +1022,7 @@ const Chat = () => {
               <h5
                 className={styles.citationPanelTitle}
                 tabIndex={0}
-                title={
-                  activeCitation.url && !activeCitation.url.includes('blob.core')
+                title={activeCitation.url && !activeCitation.url.includes('blob.core')
                     ? activeCitation.url
                     : activeCitation.title ?? ''
                 }
@@ -958,7 +1040,7 @@ const Chat = () => {
               </div>
             </Stack.Item>
           )}
-          {messages && messages.length > 0 && isIntentsPanelOpen && (
+          {!isFeedbackOpen && messages && messages.length > 0 && isIntentsPanelOpen && (
             <Stack.Item className={styles.citationPanel} tabIndex={0} role="tabpanel" aria-label="Exec Results Panel">
               <Stack
                 aria-label="Intents Panel Header Container"

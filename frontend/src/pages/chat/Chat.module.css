@@ -149,6 +149,19 @@
   margin-top: 8px;
 }
 
+.codeMessage {
+  position: sticky;
+  flex: 0 0 100px;
+  padding-top: 12px;
+  padding-bottom: 0;
+  padding-left: 5px;
+  padding-right: 24px;
+  width: calc(100% - 100px);
+  max-width: 1028px;
+  margin-bottom: 5px;
+  margin-top: 8px;
+}
+
 .clearChatBroom {
   box-sizing: border-box;
   display: flex;
@@ -367,6 +380,10 @@ a {
 
   .newChatIcon {
     left: 0px;
+  }
+
+  .feedbackIcon{
+    left: 0;
   }
 
   .clearChatBroom {

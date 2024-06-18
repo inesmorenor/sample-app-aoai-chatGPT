@@ -17,6 +17,18 @@ export async function conversationApi(options: ConversationRequest, abortSignal:
   return response
 }
 
+export async function UpdateFeedback(feedback:string, messages:string[], code?:string,  abortSignal?: AbortSignal):Promise<Response> {
+  const response = await fetch("/feedback", {
+    method: 'POST',
+    headers:{
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({message : feedback, Code: code, messages:messages}),
+    signal:abortSignal
+  })
+  return response
+}
+
 export async function getUserInfo(): Promise<UserInfo[]> {
   const response = await fetch('/.auth/me')
   if (!response.ok) {
