@@ -94,6 +94,12 @@ frontend_settings = {
     },
     "sanitize_answer": app_settings.base_settings.sanitize_answer,
     "frontend_message":"",
+    "history": {
+         "container": app_settings.history.container,
+         "blob": app_settings.history.blob,
+         "blob_service": app_settings.history.blob_service,
+         "blob_key": app_settings.history.blob_key
+    }
 }
 
 FEEDBACK_LOG_PATH = "../feedback.csv"
@@ -386,12 +392,16 @@ def list_to_csv_string(data):
 
 @bp.route("/feedback",methods=["POST"])
 async def update_feedback():
-    container_name = os.environ.get("AZURE_LOGS_CONTAINER")
-    blob_name = os.environ.get("AZURE_LOGS_BLOB")
-    account_name = os.environ.get("AZURE_LOGS_BLOB_SERVICE")
-    account_key = os.environ.get("AZURE_LOGS_BLOB_KEY")
-    connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key}"
+    container_name = app_settings.history.container
+    blob_name = app_settings.history.blob
+    account_name = app_settings.history.blob_service
+    account_key = app_settings.history.blob_key
+    mi_conn_str = app_settings.history.conn_str
 
+    if account_key:
+        connection_string = f"DefaultEndpointsProtocol=https;AccountName={account_name};AccountKey={account_key}"
+    elif mi_conn_str:
+        connection_string = mi_conn_str
     if not request.is_json:
         return jsonify({"error": "request must be json"}), 415
     request_json = await request.get_json()
@@ -402,6 +412,8 @@ async def update_feedback():
     
         service = BlobServiceClient.from_connection_string(connection_string)
         with service.get_blob_client(container_name, blob_name) as blob_client:
+            if not blob_client.exists():
+                blob_client.append_block(",".join(value_dict.keys()) + "\n")
             blob_client.append_block(data_to_append, length=len(data_to_append))
     except:
         pass

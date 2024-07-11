@@ -32,7 +32,19 @@ DOTENV_PATH = os.environ.get(
 )
 MINIMUM_SUPPORTED_AZURE_OPENAI_PREVIEW_API_VERSION = "2024-05-01-preview"
 
-
+class _HistorySettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="AZURE_LOGS_",
+        env_file=DOTENV_PATH,
+        extra="ignore",
+        env_ignore_empty=True
+    )
+    container: Optional[str] = "historial-chat"
+    blob: Optional[str] = "historial.csv"
+    blob_service: Optional[str] = None
+    blob_key: Optional[str]= None
+    conn_str: Optional[str] = None
+    
 class _UiSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="UI_",
@@ -667,6 +679,7 @@ class _AppSettings(BaseModel):
     azure_openai: _AzureOpenAISettings = _AzureOpenAISettings()
     search: _SearchCommonSettings = _SearchCommonSettings()
     ui: Optional[_UiSettings] = _UiSettings()
+    history: Optional[_HistorySettings] = _HistorySettings()
     feedback_message : str = ""
     
     # Constructed properties

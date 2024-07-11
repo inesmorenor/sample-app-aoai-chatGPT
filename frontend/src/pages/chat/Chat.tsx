@@ -44,6 +44,17 @@ const enum messageStatus {
   Processing = 'Processing',
   Done = 'Done'
 }
+interface DropDownProps {
+  categories : string[]
+  setSelectedCategory : (category: string) => void
+}
+const DropDown = ({categories, setSelectedCategory} : DropDownProps) => {
+  return (
+    <select name="feedback" onChange={e => setSelectedCategory(e.target.value)} className={styles.chatInput}>
+      {categories.map((cat:string)=>(<option value={cat}>{cat}</option>))}
+    </select>
+  );
+}
 
 const Chat = () => {
   const appStateContext = useContext(AppStateContext)
@@ -545,6 +556,11 @@ const Chat = () => {
         setIsCitationPanelOpen(false)
         setIsIntentsPanelOpen(false)
         setMessages([])
+        setHasCode(false)
+        setCode("")
+        setIsFeedbackOpen(false)
+        setCurrentFeedback("")
+        setIsFeedbackSent(false)
       }
     }
     setClearingChat(false)
@@ -613,6 +629,11 @@ const Chat = () => {
     setActiveCitation(undefined)
     appStateContext?.dispatch({ type: 'UPDATE_CURRENT_CHAT', payload: null })
     setProcessMessages(messageStatus.Done)
+    setHasCode(false)
+    setCode("")
+    setIsFeedbackOpen(false)
+    setCurrentFeedback("")
+    setIsFeedbackSent(false)
   }
 
   const stopGenerating = () => {
@@ -916,7 +937,7 @@ const Chat = () => {
                       disabled={disabledButton()}
                       aria-label="clear chat button"
                     />
-                    <CommandBarButton
+                    {hasCode && <CommandBarButton
                     role="button"
                     styles={isFeedbackOpen ?
                       {
@@ -958,7 +979,7 @@ const Chat = () => {
                     onClick={()=>setIsFeedbackOpen(!isFeedbackOpen)}
                     disabled={false}
                     aria-label="feedback button"
-                  />
+                  />}
                   <Dialog
                     hidden={hideErrorDialog}
                     onDismiss={handleErrorDialogClose}
@@ -976,7 +997,11 @@ const Chat = () => {
                   }}
                 />)
                 : isFeedbackOpen ?
-                (<QuestionInput
+                (<DropDown categories={["","Respondió con información completa", "Respondió con información relevante, pero no completa.", "Respondió con información parcialmente relevante.",  "Respondió con información no relevante.", "Respondió con contenido inapropiado."]} setSelectedCategory={(feedback:string) => {
+                  setIsFeedbackSent(true)
+                  updateFeedback(feedback)
+                }}/>
+                  /*QuestionInput
                   clearOnSend
                   placeholder="Escriba aquí su feedback."
                   disabled={!isFeedbackOpen || isLoading}
@@ -984,7 +1009,7 @@ const Chat = () => {
                     setIsFeedbackSent(true)
                     updateFeedback(feedback,id)
                   }}
-                />) 
+                />*/) 
                 :(<QuestionInput
                   clearOnSend
                   placeholder="Escriba aquí su consulta."
