@@ -407,16 +407,19 @@ async def update_feedback():
     request_json = await request.get_json()
     
     try:
-        value_dict = {"Code":request_json.get("Code",""),"Feedback":request_json.get("message",[]),"Messages":str(request_json.get("messages",[])) , "TimeElapsed": time.time()-session.get("startTime", None)}
+        messages = request_json.get("messages",[])
+        p_messages = [m for m in messages if m[0]!="{"]
+        value_dict = {"Code":request_json.get("Code",""),"Feedback":request_json.get("message",[]),"Messages":str(p_messages) , "TimeElapsed": time.time()-session.get("startTime", None)}
         data_to_append = list_to_csv_string(value_dict.values()) + "\n"
     
         service = BlobServiceClient.from_connection_string(connection_string)
         with service.get_blob_client(container_name, blob_name) as blob_client:
             if not blob_client.exists():
+                blob_client.create_append_blob()
                 blob_client.append_block(",".join(value_dict.keys()) + "\n")
             blob_client.append_block(data_to_append, length=len(data_to_append))
-    except:
-        pass
+    except Exception as e:
+        print("Error: " + str(e))
     return jsonify({"message":"Successfully added feedback: " + request_json.get("message", [])}), 200
 
 @bp.route("/conversation", methods=["POST"])
