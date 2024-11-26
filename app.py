@@ -47,7 +47,16 @@ def create_app():
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["PROVIDE_AUTOMATIC_OPTIONS"] = False
     app.secret_key = "e92ged8h28h2hd018db0823db081"
+    @app.before_request
+    async def handle_options():
+        if request.method == "OPTIONS":
+            return jsonify({}), 204  # Respuesta para solicitudes preflight
+
     return app
+
+ 
+   
+
 
 
 @bp.route("/")
