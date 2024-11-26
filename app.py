@@ -42,7 +42,7 @@ from backend.utils import (
 bp = Blueprint("routes", __name__, static_folder="static", template_folder="static")
 
 def create_app():
-    app = Quart(__name__)
+    app = quart.Quart(__name__)
     app.register_blueprint(bp)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
     app.config["PROVIDE_AUTOMATIC_OPTIONS"] = True
