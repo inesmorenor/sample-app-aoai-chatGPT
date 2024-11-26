@@ -2,14 +2,6 @@
 
 #!/bin/bash
 
-#PRUEBA
-apt-get update
-apt-get install  -y  libgl1-mesa-glx  libglib2.0-0
-pip install  -r  requirements.txt
-uvicorn main:app  --host  0.0.0.0  --port  8000
-
-#PRUEBA
-
 export NODE_OPTIONS=--max_old_space_size=8192
 
 echo ""
