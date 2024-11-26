@@ -45,14 +45,8 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
+    app.config["PROVIDE_AUTOMATIC_OPTIONS"] = True
     app.secret_key = "e92ged8h28h2hd018db0823db081"
-    return app
-
-    @app.before_request
-    async def handle_options():
-        if request.method == "OPTIONS":
-            return {}, 204
-
     return app
 
 
